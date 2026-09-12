@@ -1,0 +1,814 @@
+/**
+ * Weather Analytics Engine - Main Application Orchestrator
+ */
+
+import { fetchWeatherTelemetry } from './api.js';
+import { renderAnalyticsChart } from './chart-engine.js';
+import { initBackgroundEffects, bgEngine } from './background-effects.js';
+import {
+  convertTemp,
+  convertSpeed,
+  convertPressure,
+  degreesToCompass,
+  classifyUVIndex,
+  classifyAQI,
+  getWeatherThemeAndIcon,
+  formatLocalTime,
+  formatTimeString,
+  formatHour,
+  formatDayName,
+  formatShortDate,
+  calculateSolarArc,
+  getMoonPhaseDetails,
+  evaluateLifestyleIndices,
+  evaluateSevereWeatherAlerts,
+  getDisasterMitigationProtocols,
+  showToast
+} from './utils.js';
+
+// Application Centralized State
+const state = {
+  isImperial: false,
+  activeQuery: 'Tokyo',
+  searchHistory: [],
+  favorites: [],
+  telemetry: null,
+  isLoading: false,
+  radarMode: 'wind'
+};
+
+const STORAGE_KEY_HISTORY = 'weather_analytics_history_v1';
+const STORAGE_KEY_FAVS = 'weather_analytics_favs_v1';
+const STORAGE_KEY_UNIT = 'weather_analytics_unit_pref';
+
+let radarAnimId = null;
+
+// DOM Element Registry Cache
+const DOM = {
+  bgPhotoLayer: document.getElementById('bg-photo-layer'),
+  appViewport: document.getElementById('app-viewport'),
+  searchForm: document.getElementById('search-form'),
+  searchInput: document.getElementById('search-input'),
+  geoBtn: document.getElementById('geo-btn'),
+  historyContainer: document.getElementById('history-chips'),
+  favoritesContainer: document.getElementById('favorites-chips'),
+  unitToggle: document.getElementById('unit-toggle'),
+  unitLabelMetric: document.getElementById('unit-label-metric'),
+  unitLabelImperial: document.getElementById('unit-label-imperial'),
+  dimmerSlider: document.getElementById('dimmer-slider'),
+  
+  // Severe Weather Alerts Banner Mount
+  alertsContainer: document.getElementById('alerts-banner-container'),
+
+  // Hero Weather Elements
+  locationName: document.getElementById('location-name'),
+  countryFlag: document.getElementById('country-flag'),
+  favStarBtn: document.getElementById('fav-star-btn'),
+  timeStamp: document.getElementById('time-stamp'),
+  heroDegree: document.getElementById('hero-degree'),
+  heroUnitSymbol: document.getElementById('hero-unit-symbol'),
+  weatherText: document.getElementById('weather-text'),
+  highLowTemp: document.getElementById('high-low-temp'),
+  heroIcon: document.getElementById('hero-weather-icon'),
+  mockBadge: document.getElementById('mock-badge'),
+  galleryModalBtn: document.getElementById('gallery-modal-btn'),
+
+  // Modal Gallery Elements
+  galleryModal: document.getElementById('gallery-modal-overlay'),
+  modalCloseBtn: document.getElementById('modal-close-btn'),
+  modalCityTitle: document.getElementById('modal-city-title'),
+
+  // Auxiliary Telemetry Elements
+  feelsLikeVal: document.getElementById('feels-like-val'),
+  humidityVal: document.getElementById('humidity-val'),
+  humidityProgress: document.getElementById('humidity-progress'),
+  windVal: document.getElementById('wind-val'),
+  windCompassNeedle: document.getElementById('wind-compass-needle'),
+  windDirectionText: document.getElementById('wind-direction-text'),
+  pressureVal: document.getElementById('pressure-val'),
+  uvVal: document.getElementById('uv-val'),
+  uvBadge: document.getElementById('uv-badge'),
+  aqiVal: document.getElementById('aqi-val'),
+  aqiBadge: document.getElementById('aqi-badge'),
+  aqiSubtext: document.getElementById('aqi-subtext'),
+
+  // Extended Telemetry Elements
+  dewPointVal: document.getElementById('dew-point-val'),
+  cloudsVal: document.getElementById('clouds-val'),
+  visibilityVal: document.getElementById('visibility-val'),
+  rainVolVal: document.getElementById('rain-vol-val'),
+
+  // Solar & Lunar Widgets
+  sunriseTime: document.getElementById('sunrise-time'),
+  sunsetTime: document.getElementById('sunset-time'),
+  daylightDuration: document.getElementById('daylight-duration'),
+  solarSunNode: document.getElementById('solar-sun-node'),
+  solarPathFill: document.getElementById('solar-path-fill'),
+  
+  moonIcon: document.getElementById('moon-icon'),
+  moonName: document.getElementById('moon-name'),
+  moonIllumination: document.getElementById('moon-illumination'),
+  
+  lifestyleGrid: document.getElementById('lifestyle-grid'),
+  mitigationContainer: document.getElementById('mitigation-container'),
+
+  // Radar Canvas
+  radarCanvas: document.getElementById('radar-canvas'),
+  radarBtnWind: document.getElementById('radar-btn-wind'),
+  radarBtnPrecip: document.getElementById('radar-btn-precip'),
+
+  // Lists & Canvas
+  hourlyRail: document.getElementById('hourly-rail'),
+  forecastList: document.getElementById('forecast-list'),
+  chartCanvas: document.getElementById('analytics-chart')
+};
+
+// Initial Entry point
+document.addEventListener('DOMContentLoaded', () => {
+  initApp();
+});
+
+async function initApp() {
+  initBackgroundEffects('bg-weather-canvas');
+  loadSavedPreferences();
+  bindEventListeners();
+  renderHistoryChips();
+  renderFavoritesChips();
+
+  const defaultCity = state.searchHistory.length > 0 ? state.searchHistory[0] : 'Tokyo';
+  await loadWeatherData(defaultCity);
+}
+
+function loadSavedPreferences() {
+  const savedUnit = localStorage.getItem(STORAGE_KEY_UNIT);
+  if (savedUnit === 'imperial') {
+    state.isImperial = true;
+    if (DOM.unitToggle) DOM.unitToggle.checked = true;
+    updateUnitLabelsUI();
+  }
+
+  try {
+    const rawHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
+    if (rawHistory) state.searchHistory = JSON.parse(rawHistory);
+    
+    const rawFavs = localStorage.getItem(STORAGE_KEY_FAVS);
+    if (rawFavs) state.favorites = JSON.parse(rawFavs);
+  } catch (e) {
+    state.searchHistory = [];
+    state.favorites = [];
+  }
+}
+
+function bindEventListeners() {
+  if (DOM.searchForm) {
+    DOM.searchForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const query = DOM.searchInput.value.trim();
+      if (query) {
+        loadWeatherData(query);
+        DOM.searchInput.value = '';
+      }
+    });
+  }
+
+  if (DOM.geoBtn) {
+    DOM.geoBtn.addEventListener('click', handleGeolocationQuery);
+  }
+
+  if (DOM.favStarBtn) {
+    DOM.favStarBtn.addEventListener('click', toggleFavoriteActiveCity);
+  }
+
+  if (DOM.dimmerSlider) {
+    DOM.dimmerSlider.addEventListener('input', (e) => {
+      const opacityVal = parseFloat(e.target.value);
+      if (DOM.bgPhotoLayer) {
+        DOM.bgPhotoLayer.style.opacity = opacityVal;
+      }
+    });
+  }
+
+  if (DOM.galleryModalBtn) {
+    DOM.galleryModalBtn.addEventListener('click', openGalleryModal);
+  }
+
+  if (DOM.modalCloseBtn) {
+    DOM.modalCloseBtn.addEventListener('click', closeGalleryModal);
+  }
+
+  if (DOM.galleryModal) {
+    DOM.galleryModal.addEventListener('click', (e) => {
+      if (e.target === DOM.galleryModal) closeGalleryModal();
+    });
+  }
+
+  if (DOM.unitToggle) {
+    DOM.unitToggle.addEventListener('change', (e) => {
+      state.isImperial = e.target.checked;
+      localStorage.setItem(STORAGE_KEY_UNIT, state.isImperial ? 'imperial' : 'metric');
+      updateUnitLabelsUI();
+      if (state.telemetry) {
+        renderUI(state.telemetry);
+      }
+    });
+  }
+
+  if (DOM.unitLabelMetric) {
+    DOM.unitLabelMetric.addEventListener('click', () => {
+      if (state.isImperial) {
+        DOM.unitToggle.checked = false;
+        DOM.unitToggle.dispatchEvent(new Event('change'));
+      }
+    });
+  }
+
+  if (DOM.unitLabelImperial) {
+    DOM.unitLabelImperial.addEventListener('click', () => {
+      if (!state.isImperial) {
+        DOM.unitToggle.checked = true;
+        DOM.unitToggle.dispatchEvent(new Event('change'));
+      }
+    });
+  }
+
+  if (DOM.radarBtnWind) {
+    DOM.radarBtnWind.addEventListener('click', () => {
+      state.radarMode = 'wind';
+      DOM.radarBtnWind.classList.add('active');
+      DOM.radarBtnPrecip.classList.remove('active');
+      initRadarSimulation();
+    });
+  }
+
+  if (DOM.radarBtnPrecip) {
+    DOM.radarBtnPrecip.addEventListener('click', () => {
+      state.radarMode = 'precipitation';
+      DOM.radarBtnPrecip.classList.add('active');
+      DOM.radarBtnWind.classList.remove('active');
+      initRadarSimulation();
+    });
+  }
+}
+
+function openGalleryModal() {
+  if (!DOM.galleryModal) return;
+  if (DOM.modalCityTitle && state.telemetry) {
+    DOM.modalCityTitle.textContent = `${state.telemetry.current.name} Atmospheric Gallery`;
+  }
+  DOM.galleryModal.classList.add('active');
+}
+
+function closeGalleryModal() {
+  if (!DOM.galleryModal) return;
+  DOM.galleryModal.classList.remove('active');
+}
+
+async function handleGeolocationQuery() {
+  if (!navigator.geolocation) {
+    showToast('Geolocation is not supported by your browser.', 'error');
+    return;
+  }
+
+  DOM.geoBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const coords = {
+        lat: position.coords.latitude,
+        lon: position.coords.longitude
+      };
+      await loadWeatherData(coords);
+      DOM.geoBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i>';
+    },
+    (err) => {
+      DOM.geoBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i>';
+      showToast(`Geolocation error: ${err.message}`, 'error');
+    },
+    { timeout: 10000 }
+  );
+}
+
+async function loadWeatherData(queryOrCoords) {
+  setLoadingState(true);
+
+  try {
+    const data = await fetchWeatherTelemetry(queryOrCoords);
+
+    if (!data || !data.current) {
+      throw new Error('Failed to retrieve telemetry payload.');
+    }
+
+    state.telemetry = data;
+    state.activeQuery = data.current.name;
+
+    if (typeof queryOrCoords === 'string') {
+      saveToSearchHistory(data.current.name);
+    }
+
+    renderUI(data);
+    
+    if (data.isMock && data.fallbackReason) {
+      showToast(`Using Mock Simulator: ${data.fallbackReason}`, 'error');
+    }
+  } catch (error) {
+    showToast(error.message || 'An unexpected error occurred while fetching weather.', 'error');
+  } finally {
+    setLoadingState(false);
+  }
+}
+
+function toggleFavoriteActiveCity() {
+  if (!state.telemetry || !state.telemetry.current) return;
+  const cityName = state.telemetry.current.name;
+
+  const index = state.favorites.findIndex(c => c.toLowerCase() === cityName.toLowerCase());
+  if (index >= 0) {
+    state.favorites.splice(index, 1);
+    showToast(`Removed "${cityName}" from Favorites.`, 'success');
+  } else {
+    state.favorites.push(cityName);
+    showToast(`Added "${cityName}" to Favorites!`, 'success');
+  }
+
+  localStorage.setItem(STORAGE_KEY_FAVS, JSON.stringify(state.favorites));
+  updateFavoriteStarUI(cityName);
+  renderFavoritesChips();
+}
+
+function updateFavoriteStarUI(cityName) {
+  if (!DOM.favStarBtn) return;
+  const isFav = state.favorites.some(c => c.toLowerCase() === cityName.toLowerCase());
+  if (isFav) {
+    DOM.favStarBtn.classList.add('active');
+    DOM.favStarBtn.innerHTML = '<i class="fa-solid fa-star"></i>';
+  } else {
+    DOM.favStarBtn.classList.remove('active');
+    DOM.favStarBtn.innerHTML = '<i class="fa-regular fa-star"></i>';
+  }
+}
+
+function saveToSearchHistory(cityName) {
+  if (!cityName) return;
+  const formatted = cityName.trim();
+  let updated = state.searchHistory.filter(item => item.toLowerCase() !== formatted.toLowerCase());
+  updated.unshift(formatted);
+  if (updated.length > 5) updated = updated.slice(0, 5);
+
+  state.searchHistory = updated;
+  localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(updated));
+  renderHistoryChips();
+}
+
+function updateUnitLabelsUI() {
+  if (state.isImperial) {
+    DOM.unitLabelMetric.classList.remove('active');
+    DOM.unitLabelImperial.classList.add('active');
+  } else {
+    DOM.unitLabelMetric.classList.add('active');
+    DOM.unitLabelImperial.classList.remove('active');
+  }
+}
+
+function renderUI(data) {
+  const { current, hourly, daily, uv, aqi, isMock } = data;
+  const isImp = state.isImperial;
+
+  // 1. Theme State Shift & Background Photo Layer
+  const { theme, icon, bgPhoto } = getWeatherThemeAndIcon(current.weatherId, current.icon);
+  if (DOM.appViewport) {
+    DOM.appViewport.className = '';
+    DOM.appViewport.classList.add(theme);
+  }
+  if (DOM.bgPhotoLayer && bgPhoto) {
+    DOM.bgPhotoLayer.style.backgroundImage = `url('${bgPhoto}')`;
+  }
+  if (bgEngine) {
+    bgEngine.setTheme(theme);
+  }
+
+  // 2. Severe Weather Warnings & Alerts Banner
+  renderSevereAlertsUI(data);
+
+  // 3. Hero Weather Banner
+  DOM.locationName.textContent = current.name;
+  DOM.countryFlag.textContent = current.country ? current.country : 'INT';
+  updateFavoriteStarUI(current.name);
+
+  DOM.timeStamp.innerHTML = `<i class="fa-regular fa-clock"></i> ${formatLocalTime(current.timezone)}`;
+  DOM.heroDegree.textContent = convertTemp(current.temp, isImp);
+  DOM.heroUnitSymbol.textContent = isImp ? '°F' : '°C';
+  DOM.weatherText.textContent = current.description;
+  
+  const highTemp = convertTemp(current.temp_max, isImp);
+  const lowTemp = convertTemp(current.temp_min, isImp);
+  const unitSym = isImp ? '°F' : '°C';
+  DOM.highLowTemp.innerHTML = `
+    <span><i class="fa-solid fa-arrow-up" style="color:#f43f5e;"></i> High: ${highTemp}${unitSym}</span>
+    <span><i class="fa-solid fa-arrow-down" style="color:#38bdf8;"></i> Low: ${lowTemp}${unitSym}</span>
+  `;
+
+  DOM.heroIcon.className = `hero-weather-icon ${icon}`;
+
+  if (DOM.mockBadge) {
+    DOM.mockBadge.style.display = isMock ? 'inline-block' : 'none';
+  }
+
+  // 4. Auxiliary Telemetry Array
+  DOM.feelsLikeVal.textContent = `${convertTemp(current.feels_like, isImp)}${unitSym}`;
+  DOM.humidityVal.textContent = `${current.humidity}%`;
+  DOM.humidityProgress.style.width = `${Math.min(100, Math.max(0, current.humidity))}%`;
+  
+  DOM.windVal.textContent = convertSpeed(current.wind_speed, isImp);
+  const compassDir = degreesToCompass(current.wind_deg);
+  DOM.windDirectionText.textContent = `${compassDir} (${current.wind_deg}°)`;
+  DOM.windCompassNeedle.style.transform = `rotate(${current.wind_deg}deg)`;
+
+  DOM.pressureVal.textContent = convertPressure(current.pressure, isImp);
+
+  // UV Index
+  const uvInfo = classifyUVIndex(uv);
+  DOM.uvVal.textContent = Number(uv).toFixed(1);
+  DOM.uvBadge.textContent = uvInfo.label;
+  DOM.uvBadge.style.backgroundColor = `${uvInfo.color}25`;
+  DOM.uvBadge.style.color = uvInfo.color;
+  DOM.uvBadge.style.border = `1px solid ${uvInfo.color}50`;
+
+  // Air Quality Index
+  const aqiInfo = classifyAQI(aqi);
+  DOM.aqiVal.textContent = `${aqi} / 5`;
+  DOM.aqiBadge.textContent = aqiInfo.label;
+  DOM.aqiBadge.style.backgroundColor = `${aqiInfo.color}25`;
+  DOM.aqiBadge.style.color = aqiInfo.color;
+  DOM.aqiBadge.style.border = `1px solid ${aqiInfo.color}50`;
+  DOM.aqiSubtext.textContent = aqiInfo.desc;
+
+  // 5. Extended Telemetry Metrics
+  if (DOM.dewPointVal) DOM.dewPointVal.textContent = `${convertTemp(current.dewPoint, isImp)}${unitSym}`;
+  if (DOM.cloudsVal) DOM.cloudsVal.textContent = `${current.clouds}%`;
+  if (DOM.visibilityVal) DOM.visibilityVal.textContent = isImp ? `${Math.round(current.visibility * 0.621371)} mi` : `${current.visibility} km`;
+  if (DOM.rainVolVal) DOM.rainVolVal.textContent = isImp ? `${(current.rainVol * 0.0393701).toFixed(2)} in` : `${current.rainVol} mm`;
+
+  // 6. Solar Arc Widget
+  renderSolarArcUI(current.sunrise, current.sunset, current.dt, current.timezone);
+
+  // 7. Moon Phase & Astronomy Card
+  renderMoonPhaseUI();
+
+  // 8. Outdoor Lifestyle Indices
+  renderLifestyleUI(data);
+
+  // 9. Disaster Mitigation Protocols Card
+  renderDisasterMitigationUI(data);
+
+  // 10. Interactive Radar Visualizer Simulation
+  initRadarSimulation();
+
+  // 11. Hourly Timeline Rail (24h)
+  renderHourlyRailUI(hourly, current.timezone);
+
+  // 12. 5-Day Synoptic Outlook
+  renderForecastListUI(daily);
+
+  // 13. Analytics Line Chart (Chart.js)
+  renderAnalyticsChart(DOM.chartCanvas, hourly, isImp, current.timezone);
+}
+
+function renderSevereAlertsUI(data) {
+  if (!DOM.alertsContainer) return;
+  DOM.alertsContainer.innerHTML = '';
+
+  const alerts = evaluateSevereWeatherAlerts(data);
+  if (alerts.length === 0) return;
+
+  alerts.forEach(alert => {
+    const card = document.createElement('div');
+    card.className = `alert-card ${alert.levelClass}`;
+    card.innerHTML = `
+      <div class="alert-icon-box">
+        <i class="${alert.icon}"></i>
+      </div>
+      <div class="alert-content">
+        <div class="alert-header-row">
+          <span class="alert-level-badge">${alert.level}</span>
+          <span class="alert-title">${alert.title}</span>
+        </div>
+        <div class="alert-desc">${alert.desc}</div>
+      </div>
+    `;
+    DOM.alertsContainer.appendChild(card);
+  });
+}
+
+function renderDisasterMitigationUI(data) {
+  if (!DOM.mitigationContainer) return;
+  DOM.mitigationContainer.innerHTML = '';
+
+  const protocol = getDisasterMitigationProtocols(data);
+  
+  const headerBox = document.createElement('div');
+  headerBox.className = 'mitigation-header-box';
+  headerBox.innerHTML = `
+    <i class="${protocol.icon}" style="font-size: 1.3rem; color: ${protocol.color};"></i>
+    <span class="mitigation-hazard-title">${protocol.hazard}</span>
+  `;
+
+  const stepsList = document.createElement('div');
+  stepsList.className = 'mitigation-steps-list';
+
+  protocol.steps.forEach((stepText, idx) => {
+    const item = document.createElement('div');
+    item.className = 'mitigation-step-item';
+    item.innerHTML = `
+      <span class="step-number">${idx + 1}</span>
+      <span class="step-text">${stepText}</span>
+    `;
+    stepsList.appendChild(item);
+  });
+
+  DOM.mitigationContainer.appendChild(headerBox);
+  DOM.mitigationContainer.appendChild(stepsList);
+}
+
+function renderSolarArcUI(sunrise, sunset, currentDt, timezone) {
+  if (!DOM.sunriseTime || !DOM.sunsetTime) return;
+
+  DOM.sunriseTime.textContent = formatTimeString(sunrise, timezone);
+  DOM.sunsetTime.textContent = formatTimeString(sunset, timezone);
+
+  const { progressPct, daylightDuration } = calculateSolarArc(sunrise, sunset, currentDt);
+  if (DOM.daylightDuration) DOM.daylightDuration.textContent = `Daylight: ${daylightDuration}`;
+
+  const pathTotalLength = 220;
+  const strokeOffset = pathTotalLength - ((progressPct / 100) * pathTotalLength);
+  if (DOM.solarPathFill) {
+    DOM.solarPathFill.style.strokeDasharray = `${pathTotalLength}`;
+    DOM.solarPathFill.style.strokeDashoffset = `${strokeOffset}`;
+  }
+
+  const angleRad = Math.PI * (1 - (progressPct / 100));
+  const sunX = 80 + 60 * Math.cos(angleRad);
+  const sunY = 70 - 60 * Math.sin(angleRad);
+
+  if (DOM.solarSunNode) {
+    DOM.solarSunNode.setAttribute('cx', sunX);
+    DOM.solarSunNode.setAttribute('cy', sunY);
+  }
+}
+
+function renderMoonPhaseUI() {
+  const moon = getMoonPhaseDetails();
+  if (DOM.moonName) DOM.moonName.textContent = moon.name;
+  if (DOM.moonIllumination) DOM.moonIllumination.textContent = `Illumination: ${moon.illumination}`;
+  if (DOM.moonIcon) DOM.moonIcon.className = moon.icon;
+}
+
+function renderLifestyleUI(telemetry) {
+  if (!DOM.lifestyleGrid) return;
+  DOM.lifestyleGrid.innerHTML = '';
+
+  const indices = evaluateLifestyleIndices(telemetry);
+  indices.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'lifestyle-card';
+    card.innerHTML = `
+      <div class="lifestyle-icon">
+        <i class="${item.icon}"></i>
+      </div>
+      <div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">${item.title}</div>
+        <div style="font-size: 0.95rem; font-weight: 700; color: ${item.color};">${item.score}</div>
+      </div>
+    `;
+    DOM.lifestyleGrid.appendChild(card);
+  });
+}
+
+function initRadarSimulation() {
+  const canvas = DOM.radarCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  const width = canvas.width = canvas.parentElement.clientWidth || 300;
+  const height = canvas.height = canvas.parentElement.clientHeight || 240;
+
+  if (radarAnimId) cancelAnimationFrame(radarAnimId);
+
+  const particles = [];
+  const count = 40;
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() * 2 + 1),
+      vy: (Math.random() - 0.5) * 0.5,
+      radius: Math.random() * 2 + 1,
+      alpha: Math.random() * 0.6 + 0.2
+    });
+  }
+
+  let radarAngle = 0;
+
+  function animateRadar() {
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+    ctx.lineWidth = 1;
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    [40, 80, 120].forEach(r => {
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    ctx.beginPath();
+    ctx.moveTo(centerX, 0); ctx.lineTo(centerX, height);
+    ctx.moveTo(0, centerY); ctx.lineTo(width, centerY);
+    ctx.stroke();
+
+    if (state.radarMode === 'wind') {
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x > width) p.x = 0;
+        if (p.y < 0 || p.y > height) p.y = Math.random() * height;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(56, 189, 248, ${p.alpha})`;
+        ctx.fill();
+      });
+    } else {
+      radarAngle += 0.03;
+      const sweepX = centerX + Math.cos(radarAngle) * 130;
+      const sweepY = centerY + Math.sin(radarAngle) * 130;
+
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(sweepX, sweepY);
+      ctx.strokeStyle = 'rgba(168, 85, 247, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const spots = [
+        { x: centerX + 40, y: centerY - 30, r: 25, color: 'rgba(56, 189, 248, 0.4)' },
+        { x: centerX - 50, y: centerY + 20, r: 35, color: 'rgba(168, 85, 247, 0.4)' }
+      ];
+
+      spots.forEach(s => {
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = s.color;
+        ctx.fill();
+      });
+    }
+
+    radarAnimId = requestAnimationFrame(animateRadar);
+  }
+
+  animateRadar();
+}
+
+function renderHourlyRailUI(hourlyData, timezoneOffset) {
+  if (!DOM.hourlyRail) return;
+  DOM.hourlyRail.innerHTML = '';
+
+  if (!hourlyData || hourlyData.length === 0) {
+    DOM.hourlyRail.innerHTML = '<p class="text-muted">No hourly data available.</p>';
+    return;
+  }
+
+  hourlyData.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'hourly-card';
+    
+    const timeStr = formatHour(item.dt, timezoneOffset);
+    const tempVal = convertTemp(item.temp, state.isImperial);
+    const unitSym = state.isImperial ? '°F' : '°C';
+    const { icon } = getWeatherThemeAndIcon(item.weatherId, item.icon);
+
+    card.innerHTML = `
+      <span class="hourly-time">${timeStr}</span>
+      <i class="hourly-icon ${icon}"></i>
+      <span class="hourly-temp">${tempVal}${unitSym}</span>
+      <span class="hourly-pop" title="Precipitation Probability">
+        <i class="fa-solid fa-droplet"></i> ${item.pop}%
+      </span>
+    `;
+
+    DOM.hourlyRail.appendChild(card);
+  });
+}
+
+function renderForecastListUI(dailyData) {
+  if (!DOM.forecastList) return;
+  DOM.forecastList.innerHTML = '';
+
+  if (!dailyData || dailyData.length === 0) {
+    DOM.forecastList.innerHTML = '<p class="text-muted">No forecast available.</p>';
+    return;
+  }
+
+  const allMins = dailyData.map(d => d.minTemp);
+  const allMaxs = dailyData.map(d => d.maxTemp);
+  const globalMin = Math.min(...allMins);
+  const globalMax = Math.max(...allMaxs);
+  const rangeSpan = (globalMax - globalMin) || 1;
+
+  dailyData.forEach((day, index) => {
+    const item = document.createElement('div');
+    item.className = 'forecast-item';
+
+    const dayTitle = index === 0 ? 'Today' : formatDayName(day.dt);
+    const dateStr = formatShortDate(day.dt);
+    const { icon } = getWeatherThemeAndIcon(day.weatherId, day.icon);
+
+    const minConverted = convertTemp(day.minTemp, state.isImperial);
+    const maxConverted = convertTemp(day.maxTemp, state.isImperial);
+    const unitSym = state.isImperial ? '°F' : '°C';
+
+    const leftPct = Math.round(((day.minTemp - globalMin) / rangeSpan) * 100);
+    const widthPct = Math.max(15, Math.round(((day.maxTemp - day.minTemp) / rangeSpan) * 100));
+
+    item.innerHTML = `
+      <div>
+        <span class="forecast-day">${dayTitle}</span>
+        <span class="forecast-date">${dateStr}</span>
+      </div>
+      <i class="forecast-icon ${icon}"></i>
+      <div class="temp-range-bar-container">
+        <div class="temp-range-bar">
+          <div class="temp-range-fill" style="left: ${leftPct}%; width: ${widthPct}%;"></div>
+        </div>
+      </div>
+      <span class="forecast-min-max">${minConverted}° / ${maxConverted}${unitSym}</span>
+    `;
+
+    DOM.forecastList.appendChild(item);
+  });
+}
+
+function renderHistoryChips() {
+  if (!DOM.historyContainer) return;
+  DOM.historyContainer.innerHTML = '';
+
+  if (state.searchHistory.length === 0) {
+    DOM.historyContainer.innerHTML = '<span class="chip-label">Recent: None</span>';
+    return;
+  }
+
+  const label = document.createElement('span');
+  label.className = 'chip-label';
+  label.textContent = 'Recent:';
+  DOM.historyContainer.appendChild(label);
+
+  state.searchHistory.forEach(city => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'history-chip';
+    chip.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> ${city}`;
+    chip.addEventListener('click', () => {
+      loadWeatherData(city);
+    });
+    DOM.historyContainer.appendChild(chip);
+  });
+}
+
+function renderFavoritesChips() {
+  if (!DOM.favoritesContainer) return;
+  DOM.favoritesContainer.innerHTML = '';
+
+  if (state.favorites.length === 0) return;
+
+  const label = document.createElement('span');
+  label.className = 'chip-label';
+  label.textContent = 'Favs:';
+  DOM.favoritesContainer.appendChild(label);
+
+  state.favorites.forEach(city => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'fav-chip';
+    chip.innerHTML = `<i class="fa-solid fa-star"></i> ${city}`;
+    chip.addEventListener('click', () => {
+      loadWeatherData(city);
+    });
+    DOM.favoritesContainer.appendChild(chip);
+  });
+}
+
+function setLoadingState(isLoading) {
+  state.isLoading = isLoading;
+  const elementsToSkeleton = [
+    DOM.locationName, DOM.heroDegree, DOM.weatherText,
+    DOM.feelsLikeVal, DOM.humidityVal, DOM.windVal, DOM.pressureVal, DOM.uvVal, DOM.aqiVal
+  ];
+
+  elementsToSkeleton.forEach(el => {
+    if (el) {
+      if (isLoading) el.classList.add('skeleton');
+      else el.classList.remove('skeleton');
+    }
+  });
+}

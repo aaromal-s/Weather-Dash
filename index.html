@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Production-ready Enterprise Weather Analytics Dashboard with ambient photography, severe weather warnings, disaster mitigation protocols, real-time telemetry, 24-hour micro-timeline, solar arc, moon phase, and interactive visualizations.">
+  <title>Weather Analytics Engine | Enterprise Dashboard</title>
+
+  <!-- Typography: Google Fonts (Outfit & Inter) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome Vector Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Application Modular CSS Layers -->
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+  <!-- Ambient Weather Background Photography Layer -->
+  <div id="bg-photo-layer" class="bg-photo-layer"></div>
+
+  <!-- Dynamic Weather Particles Background Canvas -->
+  <canvas id="bg-weather-canvas" class="bg-weather-canvas"></canvas>
+
+  <!-- Root Viewport Container -->
+  <div id="app-viewport" class="theme-clear">
+    <div class="dashboard-container">
+
+      <!-- Navigation Header & Control Bar -->
+      <header class="app-header">
+        <!-- Logo & Branding -->
+        <a href="#" class="brand-logo" aria-label="Weather Analytics Engine Home">
+          <i class="fa-solid fa-cloud-bolt brand-icon"></i>
+          <div>
+            <h1 class="brand-title">AetherTelemetry</h1>
+          </div>
+          <span class="brand-badge">Engine v2.4</span>
+        </a>
+
+        <!-- Search Discovery Engine -->
+        <div class="search-wrapper">
+          <form id="search-form" class="search-form" role="search">
+            <div class="search-input-group">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input 
+                type="text" 
+                id="search-input" 
+                class="search-input" 
+                placeholder="Search City, Country Code (e.g. London, GB)..." 
+                autocomplete="off"
+                required
+              />
+            </div>
+
+            <!-- Geolocate Me Button -->
+            <button type="button" id="geo-btn" class="icon-btn" title="Geolocate Me (GPS)" aria-label="Use current location">
+              <i class="fa-solid fa-location-crosshairs"></i>
+            </button>
+
+            <!-- Search Action Submit Button -->
+            <button type="submit" class="btn-primary">
+              <span>Search</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </form>
+
+          <!-- Chips Bar Wrapper (History & Favorites) -->
+          <div class="chips-bar-wrapper">
+            <div id="history-chips" class="history-chips"></div>
+            <div id="favorites-chips" class="favorites-chips"></div>
+          </div>
+        </div>
+
+        <!-- Wallpaper Visibility Control Slider -->
+        <div class="wallpaper-dimmer-wrapper" title="Adjust Wallpaper Visibility">
+          <i class="fa-solid fa-image" style="color: var(--accent-cyan);"></i>
+          <span>BG:</span>
+          <input type="range" id="dimmer-slider" class="dimmer-slider" min="0.1" max="0.9" step="0.05" value="0.45">
+        </div>
+
+        <!-- Unit Converter Sliding Switch -->
+        <div class="unit-toggle-wrapper" title="Toggle System Units">
+          <span id="unit-label-metric" class="unit-label active">°C, km/h</span>
+          <label class="toggle-switch" for="unit-toggle" aria-label="Unit system toggle">
+            <input type="checkbox" id="unit-toggle">
+            <span class="slider"></span>
+          </label>
+          <span id="unit-label-imperial" class="unit-label">°F, mph</span>
+        </div>
+      </header>
+
+      <!-- Severe Weather Warnings & Emergency Alerts Banner Mount -->
+      <div id="alerts-banner-container" class="alerts-banner-container"></div>
+
+      <!-- Main Dashboard Grid Layout -->
+      <main class="dashboard-grid">
+
+        <!-- Left Primary Analytics Column -->
+        <div class="main-column">
+
+          <!-- Hero Weather Banner Glass Card -->
+          <section class="glass-card hero-weather-card">
+            <div class="hero-main-info">
+              <div class="location-heading">
+                <h2 id="location-name" class="location-name">Tokyo</h2>
+                <button type="button" id="fav-star-btn" class="fav-star-btn" title="Bookmark City to Favorites">
+                  <i class="fa-regular fa-star"></i>
+                </button>
+                <span id="country-flag" class="country-flag">JP</span>
+                <span id="mock-badge" class="brand-badge" style="background: rgba(234, 179, 8, 0.2); color: #eab308; border-color: rgba(234, 179, 8, 0.4); display: none;">Mock Simulator</span>
+                <button type="button" id="gallery-modal-btn" class="btn-outline" style="margin-left: 8px;">
+                  <i class="fa-solid fa-images"></i> Weather Gallery
+                </button>
+              </div>
+              <div id="time-stamp" class="time-stamp">
+                <i class="fa-regular fa-clock"></i> Loading local time...
+              </div>
+
+              <div class="temp-hero-container">
+                <div>
+                  <span id="hero-degree" class="hero-degree">21</span>
+                  <span id="hero-unit-symbol" class="hero-unit-symbol">°C</span>
+                </div>
+                <div class="weather-condition-box">
+                  <span id="weather-text" class="weather-text">Clear Sky</span>
+                  <div id="high-low-temp" class="high-low-temp">
+                    <span><i class="fa-solid fa-arrow-up"></i> High: --</span>
+                    <span><i class="fa-solid fa-arrow-down"></i> Low: --</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic Atmospheric Hero Weather Icon -->
+            <div class="hero-visual">
+              <i id="hero-weather-icon" class="hero-weather-icon fa-solid fa-sun"></i>
+            </div>
+          </section>
+
+          <!-- Primary Auxiliary Telemetry Metrics Grid -->
+          <section class="telemetry-grid" aria-label="Live Telemetry Details">
+            <!-- Tile 1: Real Feel Temp -->
+            <div class="metric-tile">
+              <div class="metric-header">
+                <span>Perceived Feel</span>
+                <i class="fa-solid fa-temperature-three-quarters"></i>
+              </div>
+              <div class="metric-body">
+                <span id="feels-like-val" class="metric-value">20°C</span>
+                <span class="metric-subtext">Thermal comfort index</span>
+              </div>
+            </div>
+
+            <!-- Tile 2: Relative Humidity -->
+            <div class="metric-tile">
+              <div class="metric-header">
+                <span>Humidity</span>
+                <i class="fa-solid fa-droplet"></i>
+              </div>
+              <div class="metric-body">
+                <span id="humidity-val" class="metric-value">58%</span>
+                <div class="progress-bar-bg">
+                  <div id="humidity-progress" class="progress-bar-fill" style="width: 58%;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tile 3: Wind & Direction Compass -->
+            <div class="metric-tile">
+              <div class="metric-header">
+                <span>Wind Telemetry</span>
+                <i class="fa-solid fa-wind"></i>
+              </div>
+              <div class="metric-body">
+                <div class="compass-wrapper">
+                  <div class="compass-dial" title="Wind Direction Needle">
+                    <i id="wind-compass-needle" class="fa-solid fa-location-arrow compass-needle"></i>
+                  </div>
+                  <div>
+                    <span id="wind-val" class="metric-value">14 km/h</span>
+                    <span id="wind-direction-text" class="metric-subtext">SE (130°)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tile 4: Barometric Pressure -->
+            <div class="metric-tile">
+              <div class="metric-header">
+                <span>Pressure</span>
+                <i class="fa-solid fa-gauge-high"></i>
+              </div>
+              <div class="metric-body">
+                <span id="pressure-val" class="metric-value">1014 hPa</span>
+                <span class="metric-subtext">Sea-level atmospheric</span>
+              </div>
+            </div>
+
+            <!-- Tile 5: UV Index Safety Gauge -->
+            <div class="metric-tile">
+              <div class="metric-header">
+                <span>UV Index</span>
+                <i class="fa-solid fa-sun-plant-wilt"></i>
+              </div>
+              <div class="metric-body">
+                <span id="uv-val" class="metric-value">6.2</span>
+                <span id="uv-badge" class="badge-pill">Moderate</span>
+              </div>
+            </div>
+
+            <!-- Tile 6: Air Quality Index (AQI) -->
+            <div class="metric-tile">
+              <div class="metric-header">
+                <span>Air Quality (AQI)</span>
+                <i class="fa-solid fa-smog"></i>
+              </div>
+              <div class="metric-body">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span id="aqi-val" class="metric-value">1 / 5</span>
+                  <span id="aqi-badge" class="badge-pill">Good</span>
+                </div>
+                <span id="aqi-subtext" class="metric-subtext">Satisfactory air quality</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Extended Climatological Metrics Row -->
+          <section class="telemetry-grid" aria-label="Extended Climatological Metrics">
+            <div class="metric-tile">
+              <div class="metric-header">
+                <span>Dew Point</span>
+                <i class="fa-solid fa-temperature-arrow-down"></i>
+              </div>
+              <div class="metric-body">
+                <span id="dew-point-val" class="metric-value">12°C</span>
+                <span class="metric-subtext">Condensation threshold</span>
+              </div>
+            </div>
+
+            <div class="metric-tile">
+              <div class="metric-header">
+                <span>Cloud Cover</span>
+                <i class="fa-solid fa-cloud"></i>
+              </div>
+              <div class="metric-body">
+                <span id="clouds-val" class="metric-value">10%</span>
+                <span class="metric-subtext">Sky opacity fraction</span>
+              </div>
+            </div>
+
+            <div class="metric-tile">
+              <div class="metric-header">
+                <span>Surface Visibility</span>
+                <i class="fa-solid fa-eye"></i>
+              </div>
+              <div class="metric-body">
+                <span id="visibility-val" class="metric-value">10 km</span>
+                <span class="metric-subtext">Clear atmospheric sight</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Solar Arc & Moon Phase Telemetry Row -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <!-- Solar Arc & Daylight Tracker -->
+            <section class="glass-card">
+              <div class="card-header">
+                <h3 class="card-title">
+                  <i class="fa-solid fa-sun" style="color: var(--accent-amber);"></i> Solar Arc Tracker
+                </h3>
+                <span id="daylight-duration" class="metric-subtext">Daylight: 12h 00m</span>
+              </div>
+              <div class="solar-arc-container">
+                <div class="solar-arc-visual">
+                  <svg class="solar-svg" viewBox="0 0 160 80">
+                    <defs>
+                      <linearGradient id="solarGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#38bdf8" />
+                        <stop offset="50%" stop-color="#fbbf24" />
+                        <stop offset="100%" stop-color="#f43f5e" />
+                      </linearGradient>
+                    </defs>
+                    <path class="solar-path-bg" d="M 20 70 A 60 60 0 0 1 140 70" />
+                    <path id="solar-path-fill" class="solar-path-fill" d="M 20 70 A 60 60 0 0 1 140 70" />
+                    <circle id="solar-sun-node" class="solar-sun-node" cx="80" cy="10" r="7" />
+                  </svg>
+                </div>
+                <div class="solar-times-row">
+                  <span><i class="fa-solid fa-cloud-sun"></i> Sunrise: <strong id="sunrise-time">6:00 AM</strong></span>
+                  <span><i class="fa-solid fa-cloud-moon"></i> Sunset: <strong id="sunset-time">6:00 PM</strong></span>
+                </div>
+              </div>
+            </section>
+
+            <!-- Lunar Telemetry & Moon Phase -->
+            <section class="glass-card">
+              <div class="card-header">
+                <h3 class="card-title">
+                  <i class="fa-solid fa-moon" style="color: var(--accent-cyan);"></i> Lunar Telemetry
+                </h3>
+              </div>
+              <div class="astronomy-grid">
+                <div class="moon-visual-box">
+                  <i id="moon-icon" class="fa-solid fa-moon"></i>
+                </div>
+                <div>
+                  <h4 id="moon-name" style="font-size: 1.1rem; font-weight: 700;">Full Moon</h4>
+                  <span id="moon-illumination" class="metric-subtext">Illumination: 99%</span>
+                  <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px;">
+                    Optimal night sky viewing conditions
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- Outdoor Lifestyle Suitability Indices -->
+          <section class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fa-solid fa-person-hiking"></i> Outdoor Lifestyle Suitability
+              </h3>
+            </div>
+            <div id="lifestyle-grid" class="lifestyle-grid">
+              <!-- Dynamically populated via JS main.js -->
+            </div>
+          </section>
+
+          <!-- Disaster Mitigation & Emergency Preparedness Protocols Card -->
+          <section class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fa-solid fa-shield-halved" style="color: var(--accent-amber);"></i> Disaster Mitigation Protocols
+              </h3>
+              <span class="metric-subtext">Emergency Preparedness Guide</span>
+            </div>
+            <div id="mitigation-container" class="mitigation-container">
+              <!-- Dynamically populated via JS main.js -->
+            </div>
+          </section>
+
+          <!-- Scrollable 24-Hour Micro-Timeline Rail Card -->
+          <section class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fa-regular fa-clock"></i> 24-Hour Micro-Timeline
+              </h3>
+              <span class="metric-subtext">3-Hour Increments</span>
+            </div>
+            <div class="hourly-rail-container">
+              <div id="hourly-rail" class="hourly-rail">
+                <!-- Dynamically populated via JS main.js -->
+              </div>
+            </div>
+          </section>
+
+          <!-- Interactive Chart.js Visualizations Card -->
+          <section class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fa-solid fa-chart-line"></i> Climatological Trends & Analytics
+              </h3>
+              <span class="metric-subtext">24-Hour Temp & Humidity Curves</span>
+            </div>
+            <div class="chart-container-box">
+              <canvas id="analytics-chart"></canvas>
+            </div>
+          </section>
+
+        </div>
+
+        <!-- Right Synoptic Forecast Sidebar Column -->
+        <aside class="sidebar-column">
+
+          <!-- Simulated Interactive Weather Radar / Wind Map Visualizer -->
+          <section class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fa-solid fa-radar"></i> Weather Radar Visualizer
+              </h3>
+            </div>
+            <div class="radar-box">
+              <div class="radar-overlay-controls">
+                <button type="button" id="radar-btn-wind" class="radar-btn active">Wind Stream</button>
+                <button type="button" id="radar-btn-precip" class="radar-btn">Rain Radar</button>
+              </div>
+              <canvas id="radar-canvas" class="radar-canvas"></canvas>
+            </div>
+          </section>
+
+          <!-- 5-Day Synoptic Outlook Glass Card -->
+          <section class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fa-regular fa-calendar-days"></i> Synoptic 5-Day Outlook
+              </h3>
+            </div>
+            <div id="forecast-list" class="forecast-list">
+              <!-- Dynamically populated via JS main.js -->
+            </div>
+          </section>
+
+        </aside>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Interactive Weather Photography Modal Overlay -->
+  <div id="gallery-modal-overlay" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-city-title" style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-images" style="color: var(--accent-cyan);"></i> Weather Photography Gallery
+        </h3>
+        <button type="button" id="modal-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="gallery-grid">
+        <div class="gallery-card-item">
+          <img src="assets/bg_sunny.png" alt="Sunny Horizon" class="gallery-img" />
+          <div class="gallery-caption">Sunny Horizon Flare</div>
+        </div>
+        <div class="gallery-card-item">
+          <img src="assets/bg_rain.png" alt="Rainy Thunderstorm" class="gallery-img" />
+          <div class="gallery-caption">Maritime Rain Atmosphere</div>
+        </div>
+        <div class="gallery-card-item">
+          <img src="assets/bg_cloudy.png" alt="Overcast Slate" class="gallery-img" />
+          <div class="gallery-caption">Overcast Cloudscape</div>
+        </div>
+        <div class="gallery-card-item">
+          <img src="assets/bg_snow.png" alt="Blizzard Winter" class="gallery-img" />
+          <div class="gallery-caption">Winter Snow Blizzard</div>
+        </div>
+        <div class="gallery-card-item">
+          <img src="assets/bg_mist.png" alt="Mystic Haze" class="gallery-img" />
+          <div class="gallery-caption">Teal Fog & Mountain Haze</div>
+        </div>
+        <div class="gallery-card-item">
+          <img src="assets/bg_sunny.png" alt="Clear Twilight" class="gallery-img" />
+          <div class="gallery-caption">Clear Twilight Atmosphere</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Non-blocking Toast Overlay Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Core JavaScript Module Entry -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

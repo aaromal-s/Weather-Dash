@@ -1,0 +1,72 @@
+/* ==========================================================================
+   Weather Analytics Engine - Reactive Theme Matrix (Translucent for Background Imagery)
+   ========================================================================== */
+
+/* Clear / Sunny Weather Theme */
+#app-viewport.theme-clear {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.35) 0%, rgba(3, 105, 161, 0.4) 40%, rgba(30, 58, 138, 0.5) 100%);
+}
+#app-viewport.theme-clear .brand-icon,
+#app-viewport.theme-clear .hero-weather-icon {
+  color: #fde047;
+  filter: drop-shadow(0 0 16px rgba(253, 224, 71, 0.6));
+}
+
+/* Overcast / Cloudy Weather Theme */
+#app-viewport.theme-cloudy {
+  background: linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.45) 50%, rgba(30, 41, 59, 0.55) 100%);
+}
+#app-viewport.theme-cloudy .brand-icon,
+#app-viewport.theme-cloudy .hero-weather-icon {
+  color: #94a3b8;
+  filter: drop-shadow(0 0 12px rgba(148, 163, 184, 0.5));
+}
+
+/* Rain / Drizzle / Thunderstorm Theme */
+#app-viewport.theme-rain {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.45) 0%, rgba(15, 23, 42, 0.5) 50%, rgba(2, 6, 23, 0.65) 100%);
+}
+#app-viewport.theme-rain .brand-icon,
+#app-viewport.theme-rain .hero-weather-icon {
+  color: #38bdf8;
+  filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.6));
+}
+
+/* Snow Weather Theme */
+#app-viewport.theme-snow {
+  background: linear-gradient(135deg, rgba(100, 116, 139, 0.4) 0%, rgba(71, 85, 105, 0.45) 45%, rgba(51, 65, 85, 0.55) 100%);
+}
+#app-viewport.theme-snow .brand-icon,
+#app-viewport.theme-snow .hero-weather-icon {
+  color: #e2e8f0;
+  filter: drop-shadow(0 0 16px rgba(226, 232, 240, 0.7));
+}
+
+/* Atmospheric / Mist / Fog / Haze Theme */
+#app-viewport.theme-atmosphere {
+  background: linear-gradient(135deg, rgba(19, 78, 74, 0.4) 0%, rgba(17, 94, 89, 0.45) 40%, rgba(15, 23, 42, 0.55) 100%);
+}
+#app-viewport.theme-atmosphere .brand-icon,
+#app-viewport.theme-atmosphere .hero-weather-icon {
+  color: #2dd4bf;
+  filter: drop-shadow(0 0 14px rgba(45, 212, 191, 0.6));
+}
+
+/* Smooth Glow & Pulse animations for icons */
+.theme-clear .hero-weather-icon {
+  animation: sun-pulse 4s ease-in-out infinite alternate;
+}
+
+@keyframes sun-pulse {
+  0% { transform: scale(1) rotate(0deg); }
+  100% { transform: scale(1.08) rotate(12deg); }
+}
+
+.theme-rain .hero-weather-icon {
+  animation: rain-drip 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes rain-drip {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(4px); }
+}

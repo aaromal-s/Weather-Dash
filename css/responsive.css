@@ -1,0 +1,157 @@
+/* ==========================================================================
+   Weather Analytics Engine - Viewport Responsive Breakpoints
+   ========================================================================== */
+
+/* Large Desktop & Ultra-Wide Screens */
+@media (min-width: 1440px) {
+  .dashboard-container {
+    max-width: 1380px;
+  }
+  .telemetry-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Standard Laptop & Desktop (1024px - 1439px) */
+@media (max-width: 1200px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr 300px;
+    gap: 20px;
+  }
+  .telemetry-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Tablet Layout (768px - 1023px) */
+@media (max-width: 1023px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .sidebar-column {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .telemetry-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .hero-weather-card {
+    padding: 24px;
+  }
+
+  .hero-degree {
+    font-size: 4rem;
+  }
+
+  .hero-weather-icon {
+    font-size: 4.5rem;
+  }
+}
+
+/* Mobile & Narrow Screens (<767px) */
+@media (max-width: 767px) {
+  #app-viewport {
+    padding: 12px 10px 24px 10px;
+  }
+
+  .app-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px 16px;
+    gap: 14px;
+  }
+
+  .brand-logo {
+    justify-content: center;
+  }
+
+  .search-wrapper {
+    max-width: 100%;
+  }
+
+  .unit-toggle-wrapper {
+    align-self: center;
+  }
+
+  .hero-weather-card {
+    grid-template-columns: 1fr;
+    text-align: center;
+    justify-items: center;
+    gap: 16px;
+    padding: 24px 18px;
+  }
+
+  .hero-main-info {
+    align-items: center;
+  }
+
+  .location-heading {
+    justify-content: center;
+  }
+
+  .location-name {
+    font-size: 1.75rem;
+  }
+
+  .temp-hero-container {
+    justify-content: center;
+  }
+
+  .hero-degree {
+    font-size: 3.5rem;
+  }
+
+  .hero-weather-icon {
+    font-size: 3.8rem;
+  }
+
+  .telemetry-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .metric-tile {
+    padding: 14px;
+  }
+
+  .metric-value {
+    font-size: 1.35rem;
+  }
+
+  .glass-card {
+    padding: 18px;
+  }
+
+  .toast-container {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    max-width: none;
+  }
+}
+
+/* Extra Small Phones (<480px) */
+@media (max-width: 480px) {
+  .telemetry-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .forecast-item {
+    grid-template-columns: 70px 30px 1fr auto;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .forecast-day {
+    font-size: 0.8rem;
+  }
+
+  .forecast-min-max {
+    font-size: 0.78rem;
+  }
+}
