@@ -352,7 +352,8 @@ export function formatLocalTime(timezoneOffsetSeconds = 0) {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true
+    hour12: true,
+    timeZone: 'UTC'
   };
   
   return targetDate.toLocaleDateString('en-US', options);
@@ -383,12 +384,12 @@ export function formatHour(timestampSeconds, timezoneOffsetSeconds = 0) {
 
 export function formatDayName(timestampSeconds) {
   const date = new Date(timestampSeconds * 1000);
-  return date.toLocaleDateString('en-US', { weekday: 'short' });
+  return date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
 }
 
 export function formatShortDate(timestampSeconds) {
   const date = new Date(timestampSeconds * 1000);
-  return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+  return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' });
 }
 
 // Solar Arc Trajectory Calculation
@@ -458,7 +459,7 @@ export function getMoonPhaseDetails(date = new Date()) {
     icon = "fa-solid fa-circle";
   } else if (phaseValue < 0.53) {
     name = "Full Moon";
-    icon = "fa-solid fa-sun";
+    icon = "fa-solid fa-moon";
     illumination = 99;
   } else if (phaseValue < 0.72) {
     name = "Waning Gibbous";
@@ -522,7 +523,7 @@ export function evaluateLifestyleIndices(telemetry) {
 
   let driveScore = "Low Risk";
   let driveColor = "var(--accent-emerald)";
-  if (isRain || isSnow || weatherId >= 700 && weatherId < 800) {
+  if (isRain || isSnow || (weatherId >= 700 && weatherId < 800)) {
     driveScore = "Hazardous Roads";
     driveColor = "var(--accent-rose)";
   } else if (wind > 30) {

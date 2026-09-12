@@ -14,7 +14,7 @@ let chartInstance = null;
  * @param {number} timezoneOffset 
  */
 export function renderAnalyticsChart(canvasEl, hourlyData, isImperial = false, timezoneOffset = 0) {
-  if (!canvasEl) return;
+  if (!canvasEl || typeof Chart === 'undefined') return;
 
   // Destroy existing chart instance before creating a new canvas context
   if (chartInstance) {

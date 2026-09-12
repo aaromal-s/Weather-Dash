@@ -538,7 +538,9 @@ function renderSolarArcUI(sunrise, sunset, currentDt, timezone) {
   const { progressPct, daylightDuration } = calculateSolarArc(sunrise, sunset, currentDt);
   if (DOM.daylightDuration) DOM.daylightDuration.textContent = `Daylight: ${daylightDuration}`;
 
-  const pathTotalLength = 220;
+  const pathTotalLength = DOM.solarPathFill && typeof DOM.solarPathFill.getTotalLength === 'function'
+    ? DOM.solarPathFill.getTotalLength()
+    : 188.5;
   const strokeOffset = pathTotalLength - ((progressPct / 100) * pathTotalLength);
   if (DOM.solarPathFill) {
     DOM.solarPathFill.style.strokeDasharray = `${pathTotalLength}`;
