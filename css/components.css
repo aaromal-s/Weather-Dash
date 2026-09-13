@@ -1482,3 +1482,115 @@ input:checked + .slider:before {
 .auth-link:hover {
   color: var(--accent-cyan);
 }
+
+/* ==========================================================================
+   NOTIFICATION CENTER & TIME MACHINE
+   ========================================================================== */
+
+.notif-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 10px;
+  height: 10px;
+  background-color: var(--accent-rose);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.8);
+}
+
+.notif-dropdown {
+  position: absolute;
+  top: 48px;
+  right: -50px;
+  width: 300px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+}
+
+.notif-dropdown.active {
+  display: flex !important;
+}
+
+.notif-header {
+  padding: 12px 16px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.notif-list {
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.notif-item {
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item.alert-danger {
+  border-left: 3px solid var(--accent-rose);
+  background: rgba(244, 63, 94, 0.05);
+}
+
+.notif-item i {
+  margin-top: 2px;
+}
+
+input[type="date"].search-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   AI ANALYST ANIMATIONS
+   ========================================================================== */
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes scanline {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ==========================================================================
+   DRAG AND DROP CUSTOM LAYOUTS
+   ========================================================================== */
+
+.glass-card[draggable="true"] {
+  cursor: grab;
+}
+
+.glass-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.glass-card.dragging {
+  opacity: 0.4;
+  transform: scale(0.98);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+  border: 1px dashed var(--accent-cyan);
+}
+
+.drop-zone {
+  transition: padding 0.2s ease-in-out;
+}

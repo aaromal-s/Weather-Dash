@@ -12,11 +12,11 @@ const GEO_URL = "https://api.openweathermap.org/geo/1.0";
 /**
  * Main telemetry aggregator for fetching current weather, forecast, UV, and Air Quality.
  */
-export async function fetchWeatherTelemetry(cityOrCoords) {
+export async function fetchWeatherTelemetry(cityOrCoords, isHistorical = false) {
   // If API key is not configured, transparently use Mock Telemetry Engine
   if (!API_KEY || API_KEY.trim() === "") {
     console.info("⚡ OpenWeather API key empty. Launching Mock Telemetry Simulator.");
-    return generateMockTelemetry(cityOrCoords);
+    return generateMockTelemetry(cityOrCoords, isHistorical);
   }
 
   try {
@@ -162,7 +162,7 @@ function transformOpenWeatherData(current, forecast, aqi, cityName, countryCode)
  * Dynamic Mock Telemetry Simulator
  * Generates realistic weather, hourly timeline, 5-day synoptic outlook, solar & lunar metrics for any query.
  */
-function generateMockTelemetry(cityOrCoords, fallbackReason = null) {
+function generateMockTelemetry(cityOrCoords, isHistorical = false) {
   let cityName = "Tokyo";
   let countryCode = "JP";
   let lat = 35.6762;
@@ -221,6 +221,15 @@ function generateMockTelemetry(cityOrCoords, fallbackReason = null) {
       vis: 8.0 + ((hash % 20) / 10),
       rainVol: wId >= 500 && wId < 600 ? 5.5 : 0
     };
+  }
+
+  // Alter for Time Machine
+  if (isHistorical) {
+    profile.temp = Math.round(profile.temp - 10 + Math.random() * 20);
+    profile.feels = profile.temp - 1;
+    profile.desc = "historical record";
+    profile.weatherId = 801; // mostly just clouds for historical to make it distinct
+    profile.icon = "02d";
   }
 
   const nowSec = Math.floor(Date.now() / 1000);

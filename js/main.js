@@ -34,7 +34,8 @@ const state = {
   favorites: [],
   telemetry: null,
   isLoading: false,
-  radarMode: 'wind'
+  radarMode: 'wind',
+  isHistorical: false
 };
 
 const STORAGE_KEY_HISTORY = 'weather_analytics_history_v1';
@@ -129,7 +130,18 @@ const DOM = {
   tabLogin: document.getElementById('tab-login'),
   tabRegister: document.getElementById('tab-register'),
   loginForm: document.getElementById('login-form'),
-  registerForm: document.getElementById('register-form')
+  registerForm: document.getElementById('register-form'),
+
+  // Time Machine & Notifications
+  timeMachineDate: document.getElementById('time-machine-date'),
+  notifBtn: document.getElementById('notif-btn'),
+  notifBadge: document.getElementById('notif-badge'),
+  notifDropdown: document.getElementById('notif-dropdown'),
+  notifList: document.getElementById('notif-list'),
+  
+  // Globe
+  globeCanvas: document.getElementById('globe-canvas'),
+  celestialTrackerVal: document.getElementById('celestial-tracker-val')
 };
 
 // Initial Entry point
@@ -146,6 +158,45 @@ async function initApp() {
 
   const defaultCity = state.searchHistory.length > 0 ? state.searchHistory[0] : 'Tokyo';
   await loadWeatherData(defaultCity);
+
+  // Start Background Notifications
+  startNotificationService();
+  
+  // Start Globe Simulation
+  initGlobeSimulation();
+  
+  // Initialize customizable layouts
+  initDragAndDrop();
+}
+
+function startNotificationService() {
+  setInterval(() => {
+    // 5% chance every 10 seconds to generate a severe weather alert
+    if (Math.random() < 0.05) {
+      const alerts = [
+        "Flash Flood Warning in your area",
+        "Tornado Watch: Seek shelter immediately",
+        "Severe Thunderstorm Warning",
+        "High Wind Advisory: Gusts up to 60mph"
+      ];
+      const alertMsg = alerts[Math.floor(Math.random() * alerts.length)];
+      
+      // Update UI
+      if (DOM.notifBadge) DOM.notifBadge.style.display = 'block';
+      if (DOM.notifList) {
+        // Remove empty state
+        const emptyMsg = DOM.notifList.querySelector('.text-muted');
+        if (emptyMsg) emptyMsg.remove();
+        
+        const item = document.createElement('div');
+        item.className = 'notif-item alert-danger';
+        item.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-rose);"></i><div>${alertMsg}</div>`;
+        DOM.notifList.prepend(item);
+      }
+      
+      showToast(alertMsg, 'error');
+    }
+  }, 10000);
 }
 
 function loadSavedPreferences() {
@@ -288,6 +339,35 @@ function bindEventListeners() {
       e.preventDefault();
       showToast('Account created successfully!', 'success');
       closeAuthModal();
+    });
+  }
+
+  // Time Machine & Notifications Listeners
+  if (DOM.notifBtn) {
+    DOM.notifBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      DOM.notifDropdown.classList.toggle('active');
+      DOM.notifBadge.style.display = 'none';
+    });
+    document.addEventListener('click', (e) => {
+      if (!DOM.notifBtn.contains(e.target) && !DOM.notifDropdown.contains(e.target)) {
+        DOM.notifDropdown.classList.remove('active');
+      }
+    });
+  }
+
+  if (DOM.timeMachineDate) {
+    DOM.timeMachineDate.addEventListener('change', (e) => {
+      const selectedDate = e.target.value;
+      if (selectedDate) {
+        state.isHistorical = true;
+        showToast(`Entering Time Machine: ${selectedDate}`, 'info');
+        loadWeatherData(state.telemetry ? state.telemetry.current.name : 'Tokyo');
+      } else {
+        state.isHistorical = false;
+        showToast('Returning to Present', 'info');
+        loadWeatherData(state.telemetry ? state.telemetry.current.name : 'Tokyo');
+      }
     });
   }
 }
@@ -519,6 +599,18 @@ function renderUI(data) {
 
   // 7. Moon Phase & Astronomy Card
   renderMoonPhaseUI();
+  
+  // 7.5 Celestial Tracker
+  if (DOM.celestialTrackerVal) {
+    if (state.isHistorical) {
+      DOM.celestialTrackerVal.textContent = "Data Unavail";
+    } else {
+      const isNight = uv <= 0;
+      const chance = Math.floor(Math.random() * 30) + (isNight ? 20 : 0);
+      const event = (Math.random() > 0.5) ? "Aurora" : "Meteor Shower";
+      DOM.celestialTrackerVal.textContent = `${event}: ${chance}%`;
+    }
+  }
 
   // 8. Outdoor Lifestyle Indices
   renderLifestyleUI(data);
@@ -526,7 +618,10 @@ function renderUI(data) {
   // 9. Disaster Mitigation Protocols Card
   renderDisasterMitigationUI(data);
 
-  // 10. Interactive Radar Visualizer Simulation
+  // 10. AI Weather Analyst Summary
+  generateAISummary(data);
+
+  // 11. Interactive Radar Visualizer Simulation
   initRadarSimulation();
 
   // 11. Hourly Timeline Rail (24h)
@@ -850,6 +945,217 @@ function initRadarSimulation() {
   }
 
   animateRadar();
+}
+
+function initGlobeSimulation() {
+  const canvas = DOM.globeCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const r = 85;
+
+  let time = 0;
+  
+  // Points on a sphere
+  const points = [];
+  const lats = 12;
+  const lons = 24;
+  for(let i = 0; i <= lats; i++) {
+    const lat = Math.PI * i / lats;
+    for(let j = 0; j <= lons; j++) {
+      const lon = 2 * Math.PI * j / lons;
+      const x = Math.sin(lat) * Math.cos(lon);
+      const y = Math.sin(lat) * Math.sin(lon);
+      const z = Math.cos(lat);
+      points.push({x, y, z});
+    }
+  }
+
+  function drawGlobe() {
+    ctx.clearRect(0, 0, w, h);
+    time += 0.01;
+
+    // Draw Atmosphere glow
+    const grd = ctx.createRadialGradient(cx, cy, r - 10, cx, cy, r + 20);
+    grd.addColorStop(0, 'rgba(56, 189, 248, 0.4)');
+    grd.addColorStop(1, 'rgba(56, 189, 248, 0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 20, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw sphere background
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rotate and project points
+    ctx.fillStyle = 'rgba(168, 85, 247, 0.7)';
+    for(let p of points) {
+      // Rotate around Y axis
+      const rotX = p.x * Math.cos(time) - p.z * Math.sin(time);
+      const rotZ = p.x * Math.sin(time) + p.z * Math.cos(time);
+      const rotY = p.y;
+      
+      // Tilt slightly
+      const tilt = 0.4;
+      const finalY = rotY * Math.cos(tilt) - rotZ * Math.sin(tilt);
+      const finalZ = rotY * Math.sin(tilt) + rotZ * Math.cos(tilt);
+      const finalX = rotX;
+      
+      // Only draw front half
+      if (finalZ < 0) {
+        const px = cx + finalX * r;
+        const py = cy + finalY * r;
+        const pSize = 1.5;
+        
+        ctx.beginPath();
+        ctx.arc(px, py, pSize, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+    
+    // Draw equator line
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r, r * 0.4, 0.4, 0, Math.PI * 2);
+    ctx.stroke();
+
+    requestAnimationFrame(drawGlobe);
+  }
+  
+  drawGlobe();
+}
+
+function initDragAndDrop() {
+  const mainCol = document.querySelector('.main-column');
+  if (!mainCol) return;
+
+  const cards = Array.from(mainCol.querySelectorAll('section.glass-card, section.telemetry-grid, section.extended-metrics-grid'));
+  
+  // Assign IDs and make draggable
+  cards.forEach((card, i) => {
+    if (!card.id) card.id = `widget-${i}`;
+    // Exclude hero banner
+    if (!card.classList.contains('hero-weather-card')) {
+      card.setAttribute('draggable', 'true');
+      card.classList.add('glass-card'); // ensure it has the class for styling
+    }
+  });
+
+  // Load saved order
+  const savedOrder = JSON.parse(localStorage.getItem('weather_dash_layout_v1'));
+  if (savedOrder && savedOrder.length > 0) {
+    savedOrder.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && mainCol.contains(el)) {
+        mainCol.appendChild(el);
+      }
+    });
+  }
+
+  let draggedItem = null;
+
+  cards.forEach(card => {
+    if (card.getAttribute('draggable') !== 'true') return;
+
+    card.addEventListener('dragstart', function (e) {
+      draggedItem = this;
+      setTimeout(() => this.classList.add('dragging'), 0);
+    });
+
+    card.addEventListener('dragend', function () {
+      setTimeout(() => {
+        this.classList.remove('dragging');
+        draggedItem = null;
+        saveLayout();
+      }, 0);
+    });
+
+    mainCol.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      if (!draggedItem) return;
+      const afterElement = getDragAfterElement(mainCol, e.clientY);
+      if (afterElement == null) {
+        mainCol.appendChild(draggedItem);
+      } else {
+        mainCol.insertBefore(draggedItem, afterElement);
+      }
+    });
+  });
+
+  function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.glass-card:not(.dragging)[draggable="true"]')];
+    return draggableElements.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
+
+  function saveLayout() {
+    const currentOrder = [...mainCol.querySelectorAll('.glass-card, .telemetry-grid')].map(c => c.id);
+    localStorage.setItem('weather_dash_layout_v1', JSON.stringify(currentOrder));
+  }
+}
+
+function generateAISummary(data) {
+  const summaryEl = document.getElementById('ai-summary-text');
+  if (!summaryEl) return;
+  
+  const { current } = data;
+  const isImp = state.isImperial;
+  const tempVal = convertTemp(current.temp, isImp);
+  const tempUnit = isImp ? '°F' : '°C';
+  const windVal = convertSpeed(current.wind_speed, isImp);
+  
+  let summary = `Aether AI Analysis: Current telemetry for ${current.name} indicates ${current.description} conditions. `;
+  
+  if (current.temp > 30) {
+    summary += `Thermal readings are high at ${tempVal}${tempUnit}. Heat mitigation protocols advised. `;
+  } else if (current.temp < 5) {
+    summary += `Thermal readings are low at ${tempVal}${tempUnit}. Risk of freezing. `;
+  } else {
+    summary += `Temperatures are stable at ${tempVal}${tempUnit}, optimal for nominal operations. `;
+  }
+  
+  if (current.wind_speed > 20) {
+    summary += `High wind velocity detected (${windVal}). Secure outdoor equipment. `;
+  }
+  
+  if (current.humidity > 80) {
+    summary += `Atmospheric moisture is elevated (${current.humidity}%). `;
+  }
+  
+  if (state.isHistorical) {
+    summary += `Note: Displaying historical records from Time Machine core.`;
+  } else {
+    summary += `Predictive models suggest conditions will hold for the next 3 hours.`;
+  }
+  
+  // Typewriter effect
+  summaryEl.textContent = '';
+  let i = 0;
+  
+  if (summaryEl._typingInterval) clearInterval(summaryEl._typingInterval);
+  
+  summaryEl._typingInterval = setInterval(() => {
+    if (i < summary.length) {
+      summaryEl.textContent += summary.charAt(i);
+      i++;
+    } else {
+      clearInterval(summaryEl._typingInterval);
+    }
+  }, 25);
 }
 
 
