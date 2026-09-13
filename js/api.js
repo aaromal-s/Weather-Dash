@@ -66,7 +66,7 @@ export async function fetchWeatherTelemetry(cityOrCoords, isHistorical = false) 
     return transformOpenWeatherData(currentRaw, forecastRaw, aqiRaw, cityName || currentRaw.name, countryCode || currentRaw.sys.country);
   } catch (error) {
     console.warn("⚠️ API fetch failed or network offline. Falling back to Mock Telemetry Simulator.", error.message);
-    return generateMockTelemetry(cityOrCoords, error.message);
+    return generateMockTelemetry(cityOrCoords, isHistorical, error.message);
   }
 }
 
@@ -162,7 +162,7 @@ function transformOpenWeatherData(current, forecast, aqi, cityName, countryCode)
  * Dynamic Mock Telemetry Simulator
  * Generates realistic weather, hourly timeline, 5-day synoptic outlook, solar & lunar metrics for any query.
  */
-function generateMockTelemetry(cityOrCoords, isHistorical = false) {
+function generateMockTelemetry(cityOrCoords, isHistorical = false, fallbackReason = null) {
   let cityName = "Tokyo";
   let countryCode = "JP";
   let lat = 35.6762;

@@ -1076,17 +1076,17 @@ function initDragAndDrop() {
         saveLayout();
       }, 0);
     });
+  });
 
-    mainCol.addEventListener('dragover', function (e) {
-      e.preventDefault();
-      if (!draggedItem) return;
-      const afterElement = getDragAfterElement(mainCol, e.clientY);
-      if (afterElement == null) {
-        mainCol.appendChild(draggedItem);
-      } else {
-        mainCol.insertBefore(draggedItem, afterElement);
-      }
-    });
+  mainCol.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    if (!draggedItem) return;
+    const afterElement = getDragAfterElement(mainCol, e.clientY);
+    if (afterElement == null) {
+      mainCol.appendChild(draggedItem);
+    } else {
+      mainCol.insertBefore(draggedItem, afterElement);
+    }
   });
 
   function getDragAfterElement(container, y) {
@@ -1103,7 +1103,7 @@ function initDragAndDrop() {
   }
 
   function saveLayout() {
-    const currentOrder = [...mainCol.querySelectorAll('.glass-card, .telemetry-grid')].map(c => c.id);
+    const currentOrder = [...mainCol.querySelectorAll('[draggable="true"]')].map(c => c.id);
     localStorage.setItem('weather_dash_layout_v1', JSON.stringify(currentOrder));
   }
 }
