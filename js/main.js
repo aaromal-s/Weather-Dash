@@ -120,7 +120,16 @@ const DOM = {
   // Lists & Canvas
   hourlyRail: document.getElementById('hourly-rail'),
   forecastList: document.getElementById('forecast-list'),
-  chartCanvas: document.getElementById('analytics-chart')
+  chartCanvas: document.getElementById('analytics-chart'),
+
+  // Auth Modal
+  authModalBtn: document.getElementById('auth-modal-btn'),
+  authModalOverlay: document.getElementById('auth-modal-overlay'),
+  authModalCloseBtn: document.getElementById('auth-modal-close-btn'),
+  tabLogin: document.getElementById('tab-login'),
+  tabRegister: document.getElementById('tab-register'),
+  loginForm: document.getElementById('login-form'),
+  registerForm: document.getElementById('register-form')
 };
 
 // Initial Entry point
@@ -247,6 +256,63 @@ function bindEventListeners() {
       DOM.radarBtnWind.classList.remove('active');
       initRadarSimulation();
     });
+  }
+
+  // Auth Event Listeners
+  if (DOM.authModalBtn) {
+    DOM.authModalBtn.addEventListener('click', openAuthModal);
+  }
+  if (DOM.authModalCloseBtn) {
+    DOM.authModalCloseBtn.addEventListener('click', closeAuthModal);
+  }
+  if (DOM.authModalOverlay) {
+    DOM.authModalOverlay.addEventListener('click', (e) => {
+      if (e.target === DOM.authModalOverlay) closeAuthModal();
+    });
+  }
+  if (DOM.tabLogin) {
+    DOM.tabLogin.addEventListener('click', () => switchAuthTab('login'));
+  }
+  if (DOM.tabRegister) {
+    DOM.tabRegister.addEventListener('click', () => switchAuthTab('register'));
+  }
+  if (DOM.loginForm) {
+    DOM.loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      showToast('Logged in successfully!', 'success');
+      closeAuthModal();
+    });
+  }
+  if (DOM.registerForm) {
+    DOM.registerForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      showToast('Account created successfully!', 'success');
+      closeAuthModal();
+    });
+  }
+}
+
+function openAuthModal() {
+  if (!DOM.authModalOverlay) return;
+  DOM.authModalOverlay.classList.add('active');
+}
+
+function closeAuthModal() {
+  if (!DOM.authModalOverlay) return;
+  DOM.authModalOverlay.classList.remove('active');
+}
+
+function switchAuthTab(tab) {
+  if (tab === 'login') {
+    DOM.tabLogin.classList.add('active');
+    DOM.tabRegister.classList.remove('active');
+    DOM.loginForm.classList.add('active');
+    DOM.registerForm.classList.remove('active');
+  } else {
+    DOM.tabRegister.classList.add('active');
+    DOM.tabLogin.classList.remove('active');
+    DOM.registerForm.classList.add('active');
+    DOM.loginForm.classList.remove('active');
   }
 }
 
@@ -586,24 +652,74 @@ function renderLifestyleUI(telemetry) {
 }
 
 function initRadarSimulation() {
-  const canvas = DOM.radarCanvas;
+  let canvas = DOM.radarCanvas;
   if (!canvas) return;
-  const ctx = canvas.getContext('2d');
   
+  // Clone to remove old event listeners
+  if (canvas.dataset.hasListeners) {
+    const newCanvas = canvas.cloneNode(true);
+    canvas.parentNode.replaceChild(newCanvas, canvas);
+    DOM.radarCanvas = newCanvas; // update ref
+    canvas = newCanvas;
+  }
+  canvas.dataset.hasListeners = "true";
+  
+  const ctx = canvas.getContext('2d');
   const width = canvas.width = canvas.parentElement.clientWidth || 300;
   const height = canvas.height = canvas.parentElement.clientHeight || 240;
 
   if (radarAnimId) cancelAnimationFrame(radarAnimId);
 
-  const particles = [];
-  const count = 40;
+  const centerX = width / 2;
+  const centerY = height / 2;
+  
+  // Interactive state
+  let mouseX = centerX;
+  let mouseY = centerY;
+  let isMouseHovering = false;
+  
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+    isMouseHovering = true;
+  });
+  
+  canvas.addEventListener('mouseleave', () => {
+    isMouseHovering = false;
+  });
+  
+  // Custom storm cells
+  let stormCells = [
+    { x: centerX + 40, y: centerY - 30, r: 25, intensity: 0.8, vx: 0.1, vy: -0.05 },
+    { x: centerX - 50, y: centerY + 20, r: 35, intensity: 0.6, vx: -0.05, vy: 0.1 }
+  ];
+  
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    // Spawn a new storm cell on click
+    stormCells.push({
+      x: clickX,
+      y: clickY,
+      r: Math.random() * 20 + 15,
+      intensity: 1.0,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4
+    });
+  });
+
+  const windParticles = [];
+  const count = 60;
   for (let i = 0; i < count; i++) {
-    particles.push({
+    windParticles.push({
       x: Math.random() * width,
       y: Math.random() * height,
       vx: (Math.random() * 2 + 1),
       vy: (Math.random() - 0.5) * 0.5,
-      radius: Math.random() * 2 + 1,
+      length: Math.random() * 10 + 5,
       alpha: Math.random() * 0.6 + 0.2
     });
   }
@@ -611,59 +727,123 @@ function initRadarSimulation() {
   let radarAngle = 0;
 
   function animateRadar() {
-    ctx.clearRect(0, 0, width, height);
+    // Fade effect for radar persistence (ghosting)
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.15)';
+    ctx.fillRect(0, 0, width, height);
 
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+    // Draw Grid & Distance Rings
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.1)';
     ctx.lineWidth = 1;
-    const centerX = width / 2;
-    const centerY = height / 2;
-
-    [40, 80, 120].forEach(r => {
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-      ctx.stroke();
-    });
-
+    
+    // Crosshairs
     ctx.beginPath();
     ctx.moveTo(centerX, 0); ctx.lineTo(centerX, height);
     ctx.moveTo(0, centerY); ctx.lineTo(width, centerY);
     ctx.stroke();
 
+    // Concentric circles
+    const maxRadius = Math.max(width, height) / 2;
+    const step = 40;
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+    ctx.font = "10px 'Outfit', sans-serif";
+    
+    for (let r = step; r < maxRadius; r += step) {
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+      ctx.stroke();
+      if (r > 40 && r < maxRadius - 20) {
+        ctx.fillText(`${r}km`, centerX + 4, centerY - r + 12);
+      }
+    }
+
     if (state.radarMode === 'wind') {
-      particles.forEach(p => {
+      windParticles.forEach(p => {
         p.x += p.vx;
         p.y += p.vy;
         if (p.x > width) p.x = 0;
         if (p.y < 0 || p.y > height) p.y = Math.random() * height;
 
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(56, 189, 248, ${p.alpha})`;
-        ctx.fill();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x - p.vx * 3, p.y - p.vy * 3);
+        ctx.strokeStyle = `rgba(56, 189, 248, ${p.alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
       });
     } else {
-      radarAngle += 0.03;
-      const sweepX = centerX + Math.cos(radarAngle) * 130;
-      const sweepY = centerY + Math.sin(radarAngle) * 130;
-
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.lineTo(sweepX, sweepY);
-      ctx.strokeStyle = 'rgba(168, 85, 247, 0.8)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      const spots = [
-        { x: centerX + 40, y: centerY - 30, r: 25, color: 'rgba(56, 189, 248, 0.4)' },
-        { x: centerX - 50, y: centerY + 20, r: 35, color: 'rgba(168, 85, 247, 0.4)' }
-      ];
-
-      spots.forEach(s => {
+      // Precipitation Mode
+      
+      // Update & draw storm cells
+      stormCells.forEach((cell, idx) => {
+        cell.x += cell.vx;
+        cell.y += cell.vy;
+        cell.intensity -= 0.0005; // slowly dissipate
+        if (cell.intensity <= 0) {
+          stormCells.splice(idx, 1);
+          return;
+        }
+        
+        // Draw cell with radial gradient
+        const grd = ctx.createRadialGradient(cell.x, cell.y, 0, cell.x, cell.y, cell.r);
+        grd.addColorStop(0, `rgba(239, 68, 68, ${cell.intensity * 0.8})`); // Red core
+        grd.addColorStop(0.4, `rgba(234, 179, 8, ${cell.intensity * 0.6})`); // Yellow mid
+        grd.addColorStop(1, 'rgba(34, 197, 94, 0)'); // Green edge
+        
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = s.color;
+        ctx.arc(cell.x, cell.y, cell.r, 0, Math.PI * 2);
+        ctx.fillStyle = grd;
         ctx.fill();
       });
+
+      // Radar Sweep Vector
+      radarAngle += 0.03;
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(radarAngle);
+      
+      // Sweep gradient wedge
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, maxRadius, 0, -0.4, true);
+      ctx.closePath();
+      
+      const sweepGrd = ctx.createLinearGradient(0, 0, 0, -maxRadius);
+      sweepGrd.addColorStop(0, 'rgba(168, 85, 247, 0.4)');
+      sweepGrd.addColorStop(1, 'rgba(168, 85, 247, 0)');
+      ctx.fillStyle = sweepGrd;
+      ctx.fill();
+      
+      // Sweep leading edge line
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(maxRadius, 0);
+      ctx.strokeStyle = 'rgba(168, 85, 247, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+    
+    // Draw Interactive Crosshair if hovering
+    if (isMouseHovering) {
+      ctx.beginPath();
+      ctx.arc(mouseX, mouseY, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.moveTo(mouseX - 10, mouseY); ctx.lineTo(mouseX + 10, mouseY);
+      ctx.moveTo(mouseX, mouseY - 10); ctx.lineTo(mouseX, mouseY + 10);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      
+      // Display distance from center
+      const dx = mouseX - centerX;
+      const dy = mouseY - centerY;
+      const dist = Math.round(Math.sqrt(dx*dx + dy*dy));
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fillText(`${dist}km`, mouseX + 10, mouseY - 10);
     }
 
     radarAnimId = requestAnimationFrame(animateRadar);
@@ -671,6 +851,7 @@ function initRadarSimulation() {
 
   animateRadar();
 }
+
 
 function renderHourlyRailUI(hourlyData, timezoneOffset) {
   if (!DOM.hourlyRail) return;

@@ -95,6 +95,11 @@
           </label>
           <span id="unit-label-imperial" class="unit-label">°F, mph</span>
         </div>
+
+        <!-- Authentication Trigger -->
+        <button type="button" id="auth-modal-btn" class="btn-primary" style="margin-left: 16px;">
+          <i class="fa-solid fa-user"></i> Login
+        </button>
       </header>
 
       <!-- Severe Weather Warnings & Emergency Alerts Banner Mount -->
@@ -459,6 +464,73 @@
           <img src="assets/bg_sunny.png" alt="Clear Twilight" class="gallery-img" />
           <div class="gallery-caption">Clear Twilight Atmosphere</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Authentication Modal Overlay -->
+  <div id="auth-modal-overlay" class="modal-overlay">
+    <div class="modal-card auth-card">
+      <div class="modal-header">
+        <h3 id="auth-modal-title" style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-user-circle" style="color: var(--accent-cyan);"></i> Welcome
+        </h3>
+        <button type="button" id="auth-modal-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+      
+      <div class="auth-tabs">
+        <button type="button" id="tab-login" class="auth-tab active">Login</button>
+        <button type="button" id="tab-register" class="auth-tab">Register</button>
+      </div>
+
+      <div class="auth-forms-container">
+        <!-- Login Form -->
+        <form id="login-form" class="auth-form active">
+          <div class="form-group">
+            <label for="login-email">Email Address</label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-envelope"></i>
+              <input type="email" id="login-email" placeholder="Enter your email" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-lock"></i>
+              <input type="password" id="login-password" placeholder="Enter your password" required />
+            </div>
+          </div>
+          <button type="submit" class="btn-primary auth-submit-btn">Sign In</button>
+          <div class="auth-footer">
+            <a href="#" class="auth-link">Forgot password?</a>
+          </div>
+        </form>
+
+        <!-- Register Form -->
+        <form id="register-form" class="auth-form">
+          <div class="form-group">
+            <label for="register-name">Full Name</label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-user"></i>
+              <input type="text" id="register-name" placeholder="John Doe" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="register-email">Email Address</label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-envelope"></i>
+              <input type="email" id="register-email" placeholder="Enter your email" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="register-password">Create Password</label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-lock"></i>
+              <input type="password" id="register-password" placeholder="Min. 8 characters" required />
+            </div>
+          </div>
+          <button type="submit" class="btn-primary auth-submit-btn">Create Account</button>
+        </form>
       </div>
     </div>
   </div>
